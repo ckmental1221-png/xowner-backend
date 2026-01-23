@@ -1,0 +1,6 @@
+@Xowner.Com_HostAddress = http://localhost:5003
+
+GET {{Xowner.Com_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
