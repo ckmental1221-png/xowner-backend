@@ -1,0 +1,102 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Xowner Chat</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+
+    <style>
+        body { margin:0; font-family:Segoe UI; background:#f4f6f8; }
+        .chat-app { width:360px; height:600px; margin:30px auto; background:#fff;
+            border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.1);
+            display:flex; flex-direction:column; }
+        .chat-header { padding:15px; background:#2563eb; color:#fff; text-align:center; font-weight:600; }
+        .contact { display:flex; padding:12px; cursor:pointer; border-bottom:1px solid #eee; }
+        .contact:hover { background:#f0f4ff; }
+        .avatar { width:40px; height:40px; border-radius:50%; background:#dbeafe;
+            display:flex; align-items:center; justify-content:center; margin-right:10px; }
+        .chat-box { display:none; flex-direction:column; height:100%; }
+        .messages { flex:1; padding:10px; overflow-y:auto; }
+        .msg { margin-bottom:8px; padding:8px 12px; border-radius:8px; max-width:70%; }
+        .sent { background:#2563eb; color:white; margin-left:auto; }
+        .received { background:#e5e7eb; }
+        .input-box { display:flex; padding:10px; border-top:1px solid #ddd; }
+        .input-box input { flex:1; padding:8px; }
+    </style>
+</head>
+
+<body>
+<div class="chat-app">
+
+    <div class="chat-header">Xowner Chat</div>
+
+    <!-- CONTACTS (⚠️ DO NOT CLICK YOURSELF) -->
+    <div id="contacts">
+        <div class="contact" onclick="openChat(6,'Nikhil Verma')">
+            <div class="avatar">N</div>
+            <div><b>Nikhil Verma</b><br><small>nikhilverma@gmail.com</small></div>
+        </div>
+
+        <div class="contact" onclick="openChat(7,'Naresh Verma')">
+            <div class="avatar">N</div>
+            <div><b>Naresh Verma</b><br><small>nareshverma@gmail.com</small></div>
+        </div>
+    </div>
+
+    <div class="chat-box" id="chatBox">
+        <div class="chat-header" id="chatUser"></div>
+        <div class="messages" id="messages"></div>
+        <div class="input-box">
+            <input id="messageInput" placeholder="Type message...">
+            <button onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const TOKEN = new URLSearchParams(window.location.search).get("token");
+    if (!TOKEN) { alert("Token missing"); throw ""; }
+
+    let receiverId = null;
+
+    const connection = new signalR.HubConnectionBuilder()
+        .withUrl("/chat", { accessTokenFactory: () => TOKEN })
+        .withAutomaticReconnect()
+        .build();
+
+    connection.on("ReceiveMessage", data => {
+        if (data.senderId === receiverId) {
+            addMessage(data.message, "received");
+        } else {
+            addMessage(data.message, "sent");
+        }
+    });
+
+    connection.start();
+
+    function openChat(id, name) {
+        receiverId = id;
+        contacts.style.display = "none";
+        chatBox.style.display = "flex";
+        chatUser.innerText = name;
+        messages.innerHTML = "";
+    }
+
+    function sendMessage() {
+        const msg = messageInput.value.trim();
+        if (!msg || !receiverId) return;
+
+        connection.invoke("SendMessage", receiverId, msg);
+        messageInput.value = "";
+    }
+
+    function addMessage(text, type) {
+        const div = document.createElement("div");
+        div.className = "msg " + type;
+        div.innerText = text;
+        messages.appendChild(div);
+        messages.scrollTop = messages.scrollHeight;
+    }
+</script>
+</body>
+</html>

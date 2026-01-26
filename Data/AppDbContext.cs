@@ -12,6 +12,8 @@ namespace XownerWebOne.Data
         public DbSet<Seller> Sellers { get; set; }
         public DbSet<ProductImage> ProductImages { get; set; }
         public DbSet<User> Users { get; set; }
+        public DbSet<ChatMessage> ChatMessages { get; set; }
+
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)

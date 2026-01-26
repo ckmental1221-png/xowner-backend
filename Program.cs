@@ -1,10 +1,10 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;   // ✅ only this
+using Microsoft.OpenApi.Models;
 using System.Text;
 using XownerWebOne.Data;
-
+using XownerWebOne.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,13 +32,35 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         ValidAudience = jwtSection["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(jwtKey)
     };
+
+    // ⭐ SignalR JWT (query string support)
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken =
+                context.Request.Query["access_token"].FirstOrDefault()
+                ?? context.Request.Query["token"].FirstOrDefault();
+
+            var path = context.HttpContext.Request.Path;
+
+            if (!string.IsNullOrEmpty(accessToken)
+                && path.StartsWithSegments("/chat"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
 });
 
-// ================= CONTROLLERS =================
+// ================= SERVICES =================
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSignalR();
 
-// ================= SWAGGER + JWT =================
+// ================= SWAGGER =================
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
@@ -53,8 +75,7 @@ builder.Services.AddSwaggerGen(options =>
         Type = SecuritySchemeType.Http,
         Scheme = "Bearer",
         BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Enter: Bearer {your JWT token}"
+        In = ParameterLocation.Header
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -81,8 +102,12 @@ app.UseSwaggerUI();
 
 app.UseStaticFiles();
 
-app.UseAuthentication(); // MUST FIRST
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// ⭐ SignalR Hub
+app.MapHub<ChatHub>("/chat");
+
 app.Run();
