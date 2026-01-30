@@ -14,8 +14,6 @@ namespace XownerWebOne.Data
         public DbSet<User> Users { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
 
-
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Product>(entity =>
@@ -31,6 +29,5 @@ namespace XownerWebOne.Data
 
             base.OnModelCreating(modelBuilder);
         }
-
     }
 }
