@@ -31,5 +31,16 @@ namespace XownerWebOne.Controllers
 
             return Ok(seller);
         }
+        // ================= GET SELLER BY ID =================
+        [HttpGet("{id}")]
+        public IActionResult GetById(int id)
+        {
+            var seller = _context.Sellers.Find(id);
+
+            if (seller == null)
+                return NotFound(new { message = "Seller not found" });
+
+            return Ok(seller);
+        }
     }
 }

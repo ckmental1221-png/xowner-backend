@@ -4,32 +4,31 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using XownerWebOne.Data;
+using XownerWebOne.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ================= DATABASE (POSTGRES - RAILWAY) =================
-// ================= RAILWAY POSTGRES SUPPORT (ADDED) =================
-var railwayDb = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+// ================= DATABASE (POSTGRES ONLY) =================
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new Exception("❌ DefaultConnection missing in appsettings.json");
 
-if (!string.IsNullOrWhiteSpace(railwayDb))
-{
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseNpgsql(railwayDb));
-}
-// ================= DATABASE (LOCAL SQL SERVER) =================
-else
-{
-    // Local / Development → SQL Server
-    builder.Services.AddDbContext<AppDbContext>(options =>
-        options.UseSqlServer(
-            builder.Configuration.GetConnectionString("DefaultConnection")));
-}
-
-
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(connectionString)
+);
 
 // ================= JWT CONFIG =================
 var jwtSection = builder.Configuration.GetSection("Jwt");
-var jwtKey = Encoding.UTF8.GetBytes(jwtSection["Key"]!);
+
+var jwtKeyString = jwtSection["Key"]
+    ?? throw new Exception("❌ Jwt:Key missing in appsettings.json");
+
+var jwtIssuer = jwtSection["Issuer"]
+    ?? throw new Exception("❌ Jwt:Issuer missing in appsettings.json");
+
+var jwtAudience = jwtSection["Audience"]
+    ?? throw new Exception("❌ Jwt:Audience missing in appsettings.json");
+
+var jwtKey = Encoding.UTF8.GetBytes(jwtKeyString);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
@@ -40,20 +39,41 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSection["Issuer"],
-        ValidAudience = jwtSection["Audience"],
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
         IssuerSigningKey = new SymmetricSecurityKey(jwtKey)
     };
 
+    // 🔹 SignalR JWT support (UNCHANGED)
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken =
+                context.Request.Query["access_token"].FirstOrDefault()
+                ?? context.Request.Query["token"].FirstOrDefault();
+
+            var path = context.HttpContext.Request.Path;
+
+            if (!string.IsNullOrEmpty(accessToken)
+                && path.StartsWithSegments("/chat"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
 });
 
-// ================= CONTROLLERS =================
+// ================= SERVICES =================
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSignalR();
 
-// ================= SWAGGER + JWT =================
+// ================= SWAGGER =================
 builder.Services.AddSwaggerGen(options =>
-{   
+{
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Title = "Xowner API",
@@ -66,8 +86,7 @@ builder.Services.AddSwaggerGen(options =>
         Type = SecuritySchemeType.Http,
         Scheme = "Bearer",
         BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Enter: Bearer {your JWT token}"
+        In = ParameterLocation.Header
     });
 
     options.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -98,4 +117,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// ================= SIGNALR =================
+app.MapHub<ChatHub>("/chat");
+
 app.Run();
