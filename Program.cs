@@ -106,6 +106,12 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+// ================= AUTO MIGRATION =================
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 
 // ================= MIDDLEWARE =================
 app.UseSwagger();
