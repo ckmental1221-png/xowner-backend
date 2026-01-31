@@ -12,7 +12,7 @@ using XownerWebOne.Data;
 namespace Xowner.Com.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260131043925_InitialCreate")]
+    [Migration("20260131091817_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
