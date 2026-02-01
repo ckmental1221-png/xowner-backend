@@ -116,7 +116,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // ================= STATIC FILES (SAFE FIX) =================
-var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+var uploadPath = Path.Combine(Path.GetTempPath(), "uploads");
 
 if (!Directory.Exists(uploadPath))
 {
