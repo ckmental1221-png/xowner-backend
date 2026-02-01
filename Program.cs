@@ -107,6 +107,7 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
 // ================= AUTO MIGRATION =================
 using (var scope = app.Services.CreateScope())
 {
@@ -114,19 +115,23 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
+// ================= STATIC FILES (SAFE FIX) =================
+var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+
+if (!Directory.Exists(uploadPath))
+{
+    Directory.CreateDirectory(uploadPath);
+}
+
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(
-        Path.Combine(Directory.GetCurrentDirectory(), "uploads")),
+    FileProvider = new PhysicalFileProvider(uploadPath),
     RequestPath = "/uploads"
 });
-
 
 // ================= MIDDLEWARE =================
 app.UseSwagger();
 app.UseSwaggerUI();
-
-app.UseStaticFiles();
 
 app.UseAuthentication();
 app.UseAuthorization();
