@@ -1,18 +1,12 @@
-﻿using System.Text.Json.Serialization;
-
-namespace XownerWebOne.Models
+﻿namespace Xowner.Com.DTOs
 {
-    public class Seller
+    public class SellerReadDto
     {
         public int Id { get; set; }
         public string Name { get; set; }
         public string ShopName { get; set; }
         public string Phone { get; set; }
-
         public DateTime JoinDate { get; set; }
-
-        [JsonIgnore]
-        public List<Product> Products { get; set; }
     }
 
 }

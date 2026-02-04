@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Xowner.Com.DTOs;
 using XownerWebOne.Data;
 using XownerWebOne.DTOs;
 using XownerWebOne.Models;
@@ -23,7 +24,8 @@ namespace XownerWebOne.Controllers
             {
                 Name = dto.Name,
                 ShopName = dto.ShopName,
-                Phone = dto.Phone
+                Phone = dto.Phone,
+                JoinDate = DateTime.UtcNow   // 🔥 VERY IMPORTANT FOR RENDER
             };
 
             _context.Sellers.Add(seller);
@@ -31,6 +33,7 @@ namespace XownerWebOne.Controllers
 
             return Ok(seller);
         }
+
         // ================= GET SELLER BY ID =================
         [HttpGet("{id}")]
         public IActionResult GetById(int id)
@@ -40,7 +43,17 @@ namespace XownerWebOne.Controllers
             if (seller == null)
                 return NotFound(new { message = "Seller not found" });
 
-            return Ok(seller);
+            var result = new SellerReadDto
+            {
+                Id = seller.Id,
+                Name = seller.Name,
+                ShopName = seller.ShopName,
+                Phone = seller.Phone,
+                JoinDate = seller.JoinDate
+            };
+
+            return Ok(result);
         }
+
     }
 }
