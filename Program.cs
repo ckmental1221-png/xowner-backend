@@ -107,6 +107,9 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+app.Urls.Add($"http://0.0.0.0:{port}");
+
 
 // ================= AUTO MIGRATION =================
 using (var scope = app.Services.CreateScope())
