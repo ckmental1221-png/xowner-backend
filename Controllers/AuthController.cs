@@ -19,7 +19,6 @@ namespace XownerWebOne.Controllers
         private readonly AppDbContext _context;
         private readonly IConfiguration _config;
 
-        // ✅ CONSTRUCTOR (IMPORTANT)
         public AuthController(AppDbContext context, IConfiguration config)
         {
             _context = context;
@@ -68,12 +67,16 @@ namespace XownerWebOne.Controllers
             if (user.PasswordHash != hash)
                 return Unauthorized("Invalid email or password");
 
+            // 🔥 ====== SAFE ADMIN LOGIC ADDED HERE ======
+            var role = user.Email == "admin@xowner.com" ? "Admin" : "Seller";
+
             var claims = new[]
             {
-        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-        new Claim(ClaimTypes.Email, user.Email),
-        new Claim(ClaimTypes.Name, user.FullName)
-    };
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Name, user.FullName),
+                new Claim(ClaimTypes.Role, role)   // ✅ NEW — Admin/Seller
+            };
 
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_config["Jwt:Key"])
@@ -93,10 +96,10 @@ namespace XownerWebOne.Controllers
 
             return Ok(new
             {
-                token = new JwtSecurityTokenHandler().WriteToken(token)
+                token = new JwtSecurityTokenHandler().WriteToken(token),
+                role = role   // 👈 frontend ke liye helpful
             });
         }
-
 
         // ================= GET LOGGED-IN USER =================
         [Authorize]
@@ -113,11 +116,14 @@ namespace XownerWebOne.Controllers
             if (user == null)
                 return Unauthorized();
 
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
             return Ok(new
             {
                 user.Id,
                 user.FullName,
-                user.Email
+                user.Email,
+                role
             });
         }
 
