@@ -8,7 +8,7 @@ using XownerWebOne.Models;
 
 namespace XownerWebOne.Controllers
 {
-    [Authorize] // 🔐 LOGIN REQUIRED FOR ALL ACTIONS
+    [Authorize] // 🔐 Login required by default
     [ApiController]
     [Route("api/[controller]")]
     public class ProductsController : ControllerBase
@@ -20,11 +20,10 @@ namespace XownerWebOne.Controllers
             _context = context;
         }
 
-        // ================= CREATE PRODUCT =================
+        // ================= CREATE PRODUCT (SELLER) =================
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] ProductCreateDto dto)
         {
-            // 🔑 JWT se logged-in user ka ID
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (userId == null)
@@ -42,8 +41,10 @@ namespace XownerWebOne.Controllers
                 ListingType = dto.ListingType,
                 Description = dto.Description,
 
-                // ✅ SellerId JWT se (NOT from DTO)
                 SellerId = int.Parse(userId),
+
+                // 🔥 NEW — APPROVAL WORKFLOW
+                Status = "Pending",
 
                 Specification = new Specification
                 {
@@ -60,7 +61,7 @@ namespace XownerWebOne.Controllers
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
 
-            // ================= IMAGE UPLOAD =================
+            // ================= IMAGE UPLOAD (UNCHANGED) =================
             if (dto.Images != null && dto.Images.Any())
             {
                 var uploadFolder = Path.Combine("wwwroot", "uploads");
@@ -90,17 +91,67 @@ namespace XownerWebOne.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            return Ok(product);
+            return Ok(new
+            {
+                message = "Product submitted for admin approval",
+                productId = product.Id
+            });
         }
 
-        // ================= GET SPECIFICATION =================
-        [AllowAnonymous] // 👈 public
+        // ================= ADMIN: SEE PENDING PRODUCTS =================
+        [HttpGet("pending")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetPendingProducts()
+        {
+            var products = await _context.Products
+                .Where(p => p.Status == "Pending")
+                .Include(p => p.Images)
+                .Include(p => p.Seller)
+                .ToListAsync();
+
+            return Ok(products);
+        }
+
+        // ================= ADMIN: APPROVE PRODUCT =================
+        [HttpPut("approve/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Approve(int id)
+        {
+            var product = await _context.Products.FindAsync(id);
+
+            if (product == null)
+                return NotFound();
+
+            product.Status = "Approved";
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Product approved" });
+        }
+
+        // ================= ADMIN: REJECT PRODUCT =================
+        [HttpPut("reject/{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> Reject(int id)
+        {
+            var product = await _context.Products.FindAsync(id);
+
+            if (product == null)
+                return NotFound();
+
+            product.Status = "Rejected";
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Product rejected" });
+        }
+
+        // ================= GET SPECIFICATION (PUBLIC) =================
+        [AllowAnonymous]
         [HttpGet("{id}/specification")]
         public async Task<IActionResult> GetSpecification(int id)
         {
             var spec = await _context.Products
                 .AsNoTracking()
-                .Where(p => p.Id == id)
+                .Where(p => p.Id == id && p.Status == "Approved")   // 🔥 filter
                 .Select(p => p.Specification)
                 .FirstOrDefaultAsync();
 
@@ -110,12 +161,13 @@ namespace XownerWebOne.Controllers
             return Ok(spec);
         }
 
-        // ================= GET ALL PRODUCTS =================
-        [AllowAnonymous] // 👈 public
+        // ================= GET ALL PRODUCTS (ONLY APPROVED) =================
+        [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetAllProducts()
         {
             var products = await _context.Products
+                .Where(p => p.Status == "Approved")   // 🔥 IMPORTANT
                 .Include(p => p.Images)
                 .Include(p => p.Seller)
                 .Select(p => new
@@ -157,15 +209,15 @@ namespace XownerWebOne.Controllers
             return Ok(products);
         }
 
-        // ================= GET PRODUCT BY ID =================
-        [AllowAnonymous] // 👈 public
+        // ================= GET SINGLE PRODUCT (ONLY APPROVED) =================
+        [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetProductById(int id)
         {
             var product = await _context.Products
                 .Include(p => p.Images)
                 .Include(p => p.Seller)
-                .Where(p => p.Id == id)
+                .Where(p => p.Id == id && p.Status == "Approved")  // 🔥 filter
                 .Select(p => new
                 {
                     p.Id,
@@ -207,8 +259,8 @@ namespace XownerWebOne.Controllers
 
             return Ok(product);
         }
+
         // ================= UPDATE PRODUCT (OWNER ONLY) =================
-        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] ProductCreateDto dto)
         {
@@ -223,11 +275,12 @@ namespace XownerWebOne.Controllers
             if (product == null)
                 return NotFound("Product not found");
 
-            // 🔐 OWNER CHECK
             if (product.SellerId != userId)
                 return Forbid("You are not the owner of this product");
 
-            // ✅ UPDATE DATA
+            // ❗ If seller edits, make it pending again
+            product.Status = "Pending";   // 🔥 important
+
             product.Title = dto.Title;
             product.Category = dto.Category;
             product.Brand = dto.Brand;
@@ -250,8 +303,8 @@ namespace XownerWebOne.Controllers
 
             return Ok(product);
         }
+
         // ================= DELETE PRODUCT (OWNER ONLY) =================
-        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
@@ -266,11 +319,9 @@ namespace XownerWebOne.Controllers
             if (product == null)
                 return NotFound("Product not found");
 
-            // 🔐 OWNER CHECK
             if (product.SellerId != userId)
                 return Forbid("You are not the owner of this product");
 
-            // 🗑 DELETE IMAGES FROM SERVER
             if (product.Images != null)
             {
                 foreach (var img in product.Images)
@@ -286,6 +337,5 @@ namespace XownerWebOne.Controllers
 
             return Ok("Product deleted successfully");
         }
-
     }
 }
