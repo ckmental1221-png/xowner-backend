@@ -9,6 +9,24 @@ using XownerWebOne.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ================= CORS =================
+var AllowFrontend = "AllowFrontend";
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(name: AllowFrontend,
+        policy =>
+        {
+            policy.WithOrigins(
+                "http://localhost:5173",
+                "https://xowner.vercel.app"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+        });
+});
+
 // ================= DATABASE (POSTGRES ONLY) =================
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new Exception("❌ DefaultConnection missing in appsettings.json");
@@ -45,7 +63,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         IssuerSigningKey = new SymmetricSecurityKey(jwtKey)
     };
 
-    // 🔹 SignalR JWT support (UNCHANGED)
+    // 🔹 SignalR JWT support
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
@@ -107,9 +125,9 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 var app = builder.Build();
+
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Urls.Add($"http://0.0.0.0:{port}");
-
 
 // ================= AUTO MIGRATION =================
 using (var scope = app.Services.CreateScope())
@@ -118,7 +136,7 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-// ================= STATIC FILES (SAFE FIX) =================
+// ================= STATIC FILES =================
 var uploadPath = Path.Combine(Path.GetTempPath(), "uploads");
 
 if (!Directory.Exists(uploadPath))
@@ -135,6 +153,10 @@ app.UseStaticFiles(new StaticFileOptions
 // ================= MIDDLEWARE =================
 app.UseSwagger();
 app.UseSwaggerUI();
+
+app.UseRouting();
+
+app.UseCors(AllowFrontend);   // ⭐ FIXED CORS
 
 app.UseAuthentication();
 app.UseAuthorization();
