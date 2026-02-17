@@ -8,6 +8,7 @@
 
 	<ItemGroup>
 		<!-- JWT -->
+		<PackageReference Include="CloudinaryDotNet" Version="1.28.0" />
 		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
 
 		<!-- Entity Framework Core -->

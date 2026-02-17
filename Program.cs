@@ -7,6 +7,8 @@ using System.Text;
 using XownerWebOne.Data;
 using XownerWebOne.Hubs;
 
+
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ================= CORS =================
@@ -90,6 +92,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSignalR();
 
+
+
 // ================= SWAGGER =================
 builder.Services.AddSwaggerGen(options =>
 {
@@ -136,19 +140,22 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-// ================= STATIC FILES =================
-var uploadPath = Path.Combine(Path.GetTempPath(), "uploads");
+// ================= STATIC FILES (FIXED FOR RENDER) =================
+var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
 
 if (!Directory.Exists(uploadPath))
 {
     Directory.CreateDirectory(uploadPath);
 }
 
+app.UseStaticFiles(); // wwwroot enable
+
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadPath),
     RequestPath = "/uploads"
 });
+
 
 // ================= MIDDLEWARE =================
 app.UseSwagger();
