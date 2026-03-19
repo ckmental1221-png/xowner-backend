@@ -59,50 +59,52 @@ namespace XownerWebOne.Controllers
             await _context.SaveChangesAsync();
 
             // ================= IMAGE UPLOAD (FIXED) =================
-            if (dto.Images != null && dto.Images.Any())
+            // ================= IMAGE UPLOAD =================
+
+            if (dto.Images == null)
+                dto.Images = new List<IFormFile>();
+
+            var uploadFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+
+            if (!Directory.Exists(uploadFolder))
             {
-                var uploadFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+                Directory.CreateDirectory(uploadFolder);
+            }
 
-                if (!Directory.Exists(uploadFolder))
+            var images = new List<ProductImage>();
+
+            foreach (var file in dto.Images)
+            {
+                if (file == null || file.Length == 0)
+                    continue;
+
+                var ext = Path.GetExtension(file.FileName);
+                var fileName = Guid.NewGuid() + ext;
+                var filePath = Path.Combine(uploadFolder, fileName);
+
+                try
                 {
-                    Directory.CreateDirectory(uploadFolder);
-                }
-
-                var images = new List<ProductImage>();
-
-                foreach (var file in dto.Images)
-                {
-                    if (file == null || file.Length == 0)
-                        continue;
-
-                    var ext = Path.GetExtension(file.FileName);
-                    var fileName = Guid.NewGuid() + ext;
-                    var filePath = Path.Combine(uploadFolder, fileName);
-
-                    try
+                    using (var stream = new FileStream(filePath, FileMode.Create))
                     {
-                        using (var stream = new FileStream(filePath, FileMode.Create))
-                        {
-                            await file.CopyToAsync(stream);
-                        }
-
-                        images.Add(new ProductImage
-                        {
-                            Url = "/uploads/" + fileName,
-                            ProductId = product.Id
-                        });
+                        await file.CopyToAsync(stream);
                     }
-                    catch (Exception ex)
+
+                    images.Add(new ProductImage
                     {
-                        Console.WriteLine("Image upload error: " + ex.Message);
-                    }
+                        Url = "/uploads/" + fileName,
+                        ProductId = product.Id
+                    });
                 }
-
-                if (images.Any())
+                catch (Exception ex)
                 {
-                    _context.ProductImages.AddRange(images);
-                    await _context.SaveChangesAsync();
+                    Console.WriteLine("Image upload error: " + ex.Message);
                 }
+            }
+
+            if (images.Any())
+            {
+                _context.ProductImages.AddRange(images);
+                await _context.SaveChangesAsync();
             }
 
             // 🔥 FINAL RETURN (IMPORTANT FIX)
