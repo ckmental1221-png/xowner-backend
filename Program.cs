@@ -127,11 +127,15 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+
+// ✅ Build se pehle hona chahiye
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(int.Parse(port));
+});
 
 var app = builder.Build();
-
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-app.Urls.Add($"http://0.0.0.0:{port}");
 
 // ================= AUTO MIGRATION =================
 using (var scope = app.Services.CreateScope())
