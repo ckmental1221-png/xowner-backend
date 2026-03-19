@@ -199,7 +199,9 @@ namespace XownerWebOne.Controllers
                         p.Specification.OS
                     },
 
-                    Images = p.Images.Select(i => i.Url).ToList()
+                    Images = p.Images.Select(i =>
+      $"{Request.Scheme}://{Request.Host}{i.Url}"
+).ToList()
                 })
                 .ToListAsync();
 
@@ -247,7 +249,9 @@ namespace XownerWebOne.Controllers
                         p.Specification.OS
                     },
 
-                    Images = p.Images.Select(i => i.Url).ToList()
+                    Images = p.Images.Select(i =>
+      $"{Request.Scheme}://{Request.Host}{i.Url}"
+).ToList()
                 })
                 .FirstOrDefaultAsync();
 
