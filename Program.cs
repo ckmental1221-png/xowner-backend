@@ -7,8 +7,6 @@ using System.Text;
 using XownerWebOne.Data;
 using XownerWebOne.Hubs;
 
-
-
 var builder = WebApplication.CreateBuilder(args);
 
 // ================= CORS =================
@@ -29,7 +27,7 @@ builder.Services.AddCors(options =>
         });
 });
 
-// ================= DATABASE (POSTGRES ONLY) =================
+// ================= DATABASE =================
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new Exception("❌ DefaultConnection missing in appsettings.json");
 
@@ -92,8 +90,6 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSignalR();
 
-
-
 // ================= SWAGGER =================
 builder.Services.AddSwaggerGen(options =>
 {
@@ -127,9 +123,10 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
+
+// ================= PORT CONFIG =================
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 
-// ✅ Build se pehle hona chahiye
 builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(int.Parse(port));
@@ -144,7 +141,7 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-// ================= STATIC FILES (FIXED FOR RENDER) =================
+// ================= STATIC FILES =================
 var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
 
 if (!Directory.Exists(uploadPath))
@@ -152,14 +149,15 @@ if (!Directory.Exists(uploadPath))
     Directory.CreateDirectory(uploadPath);
 }
 
-app.UseStaticFiles(); // wwwroot enable
+// wwwroot files
+app.UseStaticFiles();
 
+// uploads folder
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadPath),
     RequestPath = "/uploads"
 });
-
 
 // ================= MIDDLEWARE =================
 app.UseSwagger();
@@ -167,7 +165,7 @@ app.UseSwaggerUI();
 
 app.UseRouting();
 
-app.UseCors(AllowFrontend);   // ⭐ FIXED CORS
+app.UseCors(AllowFrontend);
 
 app.UseAuthentication();
 app.UseAuthorization();

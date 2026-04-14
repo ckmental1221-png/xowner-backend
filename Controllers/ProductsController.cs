@@ -58,9 +58,7 @@ namespace XownerWebOne.Controllers
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
 
-            // ================= IMAGE UPLOAD (FIXED) =================
             // ================= IMAGE UPLOAD =================
-
             if (dto.Images == null)
                 dto.Images = new List<IFormFile>();
 
@@ -89,6 +87,8 @@ namespace XownerWebOne.Controllers
                         await file.CopyToAsync(stream);
                     }
 
+                    Console.WriteLine("Saved Image: " + fileName);
+
                     images.Add(new ProductImage
                     {
                         Url = "/uploads/" + fileName,
@@ -107,7 +107,6 @@ namespace XownerWebOne.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            // 🔥 FINAL RETURN (IMPORTANT FIX)
             return Ok(new
             {
                 message = "Product submitted for approval",
@@ -115,8 +114,7 @@ namespace XownerWebOne.Controllers
             });
         }
 
-        // ================= बाकी सब SAME =================
-
+        // ================= GET PENDING =================
         [HttpGet("pending")]
         public async Task<IActionResult> GetPendingProducts()
         {
@@ -129,6 +127,7 @@ namespace XownerWebOne.Controllers
             return Ok(products);
         }
 
+        // ================= APPROVE =================
         [HttpPut("approve/{id}")]
         public async Task<IActionResult> Approve(int id)
         {
@@ -143,6 +142,7 @@ namespace XownerWebOne.Controllers
             return Ok(new { message = "Product approved" });
         }
 
+        // ================= REJECT =================
         [HttpPut("reject/{id}")]
         public async Task<IActionResult> Reject(int id)
         {
@@ -157,10 +157,13 @@ namespace XownerWebOne.Controllers
             return Ok(new { message = "Product rejected" });
         }
 
+        // ================= GET ALL PRODUCTS =================
         [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetAllProducts()
         {
+            var baseUrl = "https://xowner-backend-1.onrender.com";
+
             var products = await _context.Products
                 .Where(p => p.Status == "Approved")
                 .Include(p => p.Images)
@@ -198,7 +201,7 @@ namespace XownerWebOne.Controllers
                     },
 
                     Images = p.Images.Select(i =>
-                        $"{Request.Scheme}://{Request.Host}{i.Url}"
+                        $"{baseUrl}{i.Url}"
                     ).ToList()
                 })
                 .ToListAsync();
@@ -206,6 +209,7 @@ namespace XownerWebOne.Controllers
             return Ok(products);
         }
 
+        // ================= DELETE =================
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
