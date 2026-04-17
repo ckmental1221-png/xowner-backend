@@ -26,8 +26,12 @@ namespace XownerWebOne.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
+            // ✅ SAFE USER CHECK
             if (userId == null)
                 return Unauthorized("Login required");
+
+            if (!int.TryParse(userId, out int sellerId))
+                return BadRequest("Invalid user id");
 
             var product = new Product
             {
@@ -40,7 +44,7 @@ namespace XownerWebOne.Controllers
                 OriginalPrice = dto.OriginalPrice,
                 ListingType = dto.ListingType,
                 Description = dto.Description,
-                SellerId = int.Parse(userId),
+                SellerId = sellerId,
                 Status = "Pending",
 
                 Specification = new Specification
@@ -59,8 +63,6 @@ namespace XownerWebOne.Controllers
             await _context.SaveChangesAsync();
 
             // ================= IMAGE UPLOAD =================
-            if (dto.Images == null)
-                dto.Images = new List<IFormFile>();
 
             var uploadFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
 
@@ -71,33 +73,35 @@ namespace XownerWebOne.Controllers
 
             var images = new List<ProductImage>();
 
-            foreach (var file in dto.Images)
+            // ✅ SAFE IMAGE HANDLING
+            if (dto.Images != null && dto.Images.Any())
             {
-                if (file == null || file.Length == 0)
-                    continue;
-
-                var ext = Path.GetExtension(file.FileName);
-                var fileName = Guid.NewGuid() + ext;
-                var filePath = Path.Combine(uploadFolder, fileName);
-
-                try
+                foreach (var file in dto.Images)
                 {
-                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    if (file == null || file.Length == 0)
+                        continue;
+
+                    try
                     {
-                        await file.CopyToAsync(stream);
+                        var ext = Path.GetExtension(file.FileName);
+                        var fileName = Guid.NewGuid() + ext;
+                        var filePath = Path.Combine(uploadFolder, fileName);
+
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
+
+                        images.Add(new ProductImage
+                        {
+                            Url = "/uploads/" + fileName,
+                            ProductId = product.Id
+                        });
                     }
-
-                    Console.WriteLine("Saved Image: " + fileName);
-
-                    images.Add(new ProductImage
+                    catch (Exception ex)
                     {
-                        Url = "/uploads/" + fileName,
-                        ProductId = product.Id
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Image upload error: " + ex.Message);
+                        Console.WriteLine("Image upload error: " + ex.Message);
+                    }
                 }
             }
 
@@ -213,9 +217,13 @@ namespace XownerWebOne.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var userId = int.Parse(
-                User.FindFirstValue(ClaimTypes.NameIdentifier)!
-            );
+            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (userIdStr == null)
+                return Unauthorized();
+
+            if (!int.TryParse(userIdStr, out int userId))
+                return BadRequest("Invalid user");
 
             var product = await _context.Products
                 .Include(p => p.Images)
@@ -231,7 +239,12 @@ namespace XownerWebOne.Controllers
             {
                 foreach (var img in product.Images)
                 {
-                    var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", img.Url.TrimStart('/'));
+                    var path = Path.Combine(
+                        Directory.GetCurrentDirectory(),
+                        "wwwroot",
+                        img.Url.TrimStart('/')
+                    );
+
                     if (System.IO.File.Exists(path))
                         System.IO.File.Delete(path);
                 }
