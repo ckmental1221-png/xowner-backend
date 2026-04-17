@@ -34,10 +34,10 @@ namespace XownerWebOne.Controllers
 
             var user = new User
             {
-                FullName = dto.FullName,
+                FullName = dto.Name,          // ✅
                 Email = dto.Email,
                 PasswordHash = HashPassword(dto.Password),
-                Phone = dto.Phone,
+                Phone = dto.PhoneNumber,      // ✅
                 Location = dto.Location
             };
 
