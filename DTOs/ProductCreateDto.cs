@@ -13,7 +13,7 @@
         public string ListingType { get; set; }
         public string Description { get; set; }
 
-       // public int SellerId { get; set; }
+       public int SellerId { get; set; }
 
         // Specification fields
         public string Storage { get; set; }

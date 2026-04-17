@@ -29,9 +29,6 @@ namespace XownerWebOne.Controllers
             if (userId == null)
                 return Unauthorized("Login required");
 
-            if (!int.TryParse(userId, out int sellerId))
-                return BadRequest("Invalid user id");
-
             var product = new Product
             {
                 Title = dto.Title,
@@ -43,7 +40,7 @@ namespace XownerWebOne.Controllers
                 OriginalPrice = dto.OriginalPrice,
                 ListingType = dto.ListingType,
                 Description = dto.Description,
-                SellerId = sellerId,
+                SellerId = int.Parse(userId),
                 Status = "Pending",
 
                 Specification = new Specification
@@ -62,35 +59,45 @@ namespace XownerWebOne.Controllers
             await _context.SaveChangesAsync();
 
             // ================= IMAGE UPLOAD =================
+            if (dto.Images == null)
+                dto.Images = new List<IFormFile>();
 
             var uploadFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
 
             if (!Directory.Exists(uploadFolder))
+            {
                 Directory.CreateDirectory(uploadFolder);
+            }
 
             var images = new List<ProductImage>();
 
-            if (dto.Images != null && dto.Images.Any())
+            foreach (var file in dto.Images)
             {
-                foreach (var file in dto.Images)
+                if (file == null || file.Length == 0)
+                    continue;
+
+                var ext = Path.GetExtension(file.FileName);
+                var fileName = Guid.NewGuid() + ext;
+                var filePath = Path.Combine(uploadFolder, fileName);
+
+                try
                 {
-                    if (file == null || file.Length == 0)
-                        continue;
-
-                    var ext = Path.GetExtension(file.FileName);
-                    var fileName = Guid.NewGuid() + ext;
-                    var filePath = Path.Combine(uploadFolder, fileName);
-
                     using (var stream = new FileStream(filePath, FileMode.Create))
                     {
                         await file.CopyToAsync(stream);
                     }
+
+                    Console.WriteLine("Saved Image: " + fileName);
 
                     images.Add(new ProductImage
                     {
                         Url = "/uploads/" + fileName,
                         ProductId = product.Id
                     });
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Image upload error: " + ex.Message);
                 }
             }
 
@@ -105,6 +112,49 @@ namespace XownerWebOne.Controllers
                 message = "Product submitted for approval",
                 productId = product.Id
             });
+        }
+
+        // ================= GET PENDING =================
+        [HttpGet("pending")]
+        public async Task<IActionResult> GetPendingProducts()
+        {
+            var products = await _context.Products
+                .Where(p => p.Status == "Pending")
+                .Include(p => p.Images)
+                .Include(p => p.Seller)
+                .ToListAsync();
+
+            return Ok(products);
+        }
+
+        // ================= APPROVE =================
+        [HttpPut("approve/{id}")]
+        public async Task<IActionResult> Approve(int id)
+        {
+            var product = await _context.Products.FindAsync(id);
+
+            if (product == null)
+                return NotFound();
+
+            product.Status = "Approved";
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Product approved" });
+        }
+
+        // ================= REJECT =================
+        [HttpPut("reject/{id}")]
+        public async Task<IActionResult> Reject(int id)
+        {
+            var product = await _context.Products.FindAsync(id);
+
+            if (product == null)
+                return NotFound();
+
+            product.Status = "Rejected";
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Product rejected" });
         }
 
         // ================= GET ALL PRODUCTS =================
@@ -157,6 +207,40 @@ namespace XownerWebOne.Controllers
                 .ToListAsync();
 
             return Ok(products);
+        }
+
+        // ================= DELETE =================
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var userId = int.Parse(
+                User.FindFirstValue(ClaimTypes.NameIdentifier)!
+            );
+
+            var product = await _context.Products
+                .Include(p => p.Images)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (product == null)
+                return NotFound("Product not found");
+
+            if (product.SellerId != userId)
+                return Forbid("You are not the owner");
+
+            if (product.Images != null)
+            {
+                foreach (var img in product.Images)
+                {
+                    var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", img.Url.TrimStart('/'));
+                    if (System.IO.File.Exists(path))
+                        System.IO.File.Delete(path);
+                }
+            }
+
+            _context.Products.Remove(product);
+            await _context.SaveChangesAsync();
+
+            return Ok("Product deleted successfully");
         }
     }
 }
