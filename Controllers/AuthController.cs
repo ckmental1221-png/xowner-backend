@@ -34,7 +34,7 @@ namespace XownerWebOne.Controllers
 
             var user = new User
             {
-                FullName = dto.Name,          // ✅
+                FullName = dto.FullName,          // ✅
                 Email = dto.Email,
                 PasswordHash = HashPassword(dto.Password),
                 Phone = dto.PhoneNumber,      // ✅
