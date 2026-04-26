@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
@@ -6,8 +7,10 @@ using Microsoft.OpenApi.Models;
 using System.Text;
 using XownerWebOne.Data;
 using XownerWebOne.Hubs;
+using XownerWebOne.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
 
 // ================= CORS =================
 var AllowFrontend = "AllowFrontend";

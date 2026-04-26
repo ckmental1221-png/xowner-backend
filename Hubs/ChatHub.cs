@@ -61,20 +61,38 @@ namespace XownerWebOne.Hubs
             _context.ChatMessages.Add(chat);
             await _context.SaveChangesAsync();
 
-            // receiver
-            await Clients.Group(receiverId.ToString())
-                .SendAsync("ReceiveMessage", new
-                {
-                    senderId,
-                    message
-                });
+            //// receiver
+            //await Clients.Group(receiverId.ToString())
+            //    .SendAsync("ReceiveMessage", new
+            //    {
+            //        senderId,
+            //        message
+            //    });
 
-            // sender (own message)
+            //// sender (own message)
+            //await Clients.Group(senderId.ToString())
+            //    .SendAsync("ReceiveMessage", new
+            //    {
+            //        senderId,
+            //        message
+            //    });
+            await Clients.Group(receiverId.ToString())
+    .SendAsync("ReceiveMessage", new
+    {
+        senderId,
+        receiverId,
+        message,
+        sentAt = DateTime.UtcNow
+    });
+
+            // sender ko bhi bhejo
             await Clients.Group(senderId.ToString())
                 .SendAsync("ReceiveMessage", new
                 {
                     senderId,
-                    message
+                    receiverId,
+                    message,
+                    sentAt = DateTime.UtcNow
                 });
         }
     }
