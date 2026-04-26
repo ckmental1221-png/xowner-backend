@@ -123,7 +123,7 @@ builder.Services.AddSwaggerGen(options =>
         }
     });
 });
-
+//
 // ================= PORT CONFIG =================
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 
@@ -135,11 +135,11 @@ builder.WebHost.ConfigureKestrel(options =>
 var app = builder.Build();
 
 // ================= AUTO MIGRATION =================
-//using (var scope = app.Services.CreateScope())
-//{
-//    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-//    db.Database.Migrate();
-//}
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
 
 // ================= STATIC FILES =================
 var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
