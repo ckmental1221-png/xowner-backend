@@ -145,7 +145,7 @@ var app = builder.Build();
 var uploadPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
 
 if (!Directory.Exists(uploadPath))
-{
+{ 
     Directory.CreateDirectory(uploadPath);
 }
 
