@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using XownerWebOne.Data;
+using XownerWebOne.Models;
 
 namespace XownerWebOne.Controllers
 {
@@ -35,6 +36,23 @@ namespace XownerWebOne.Controllers
                 .ToListAsync();
 
             return Ok(messages);
+        }
+        // ================= SEND MESSAGE =================
+        [HttpPost]
+        public async Task<IActionResult> SendMessage([FromBody] ChatMessage model)
+        {
+            var myId = int.Parse(
+                User.FindFirstValue(ClaimTypes.NameIdentifier)!
+            );
+
+            model.SenderId = myId;
+            model.SentAt = DateTime.UtcNow;
+
+            _context.ChatMessages.Add(model);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(model);
         }
     }
 }
