@@ -491,5 +491,20 @@ namespace XownerWebOne.Controllers
 
             return Ok("Product deleted successfully");
         }
+        [AllowAnonymous]
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetProductById(int id)
+        {
+            var product = await _context.Products
+                .Include(p => p.Images)
+                .Include(p => p.Seller)
+                .Include(p => p.Specification)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (product == null)
+                return NotFound();
+
+            return Ok(product);
+        }
     }
 }
