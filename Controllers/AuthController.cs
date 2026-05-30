@@ -123,6 +123,8 @@ namespace XownerWebOne.Controllers
                 user.Id,
                 user.FullName,
                 user.Email,
+                user.Phone,
+                user.Location,
                 role
             });
         }
