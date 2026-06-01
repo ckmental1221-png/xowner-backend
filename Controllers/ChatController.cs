@@ -41,5 +41,29 @@ namespace XownerWebOne.Controllers
 
             return Ok(model);
         }
+        [HttpGet("conversations")]
+        public async Task<IActionResult> GetConversations()
+        {
+            var currentUserId = 1; // abhi test ke liye
+
+            var userIds = await _context.ChatMessages
+                .Where(x => x.SenderId == currentUserId || x.ReceiverId == currentUserId)
+                .Select(x => x.SenderId == currentUserId
+                    ? x.ReceiverId
+                    : x.SenderId)
+                .Distinct()
+                .ToListAsync();
+
+            var users = await _context.Users
+                .Where(x => userIds.Contains(x.Id))
+                .Select(x => new
+                {
+                    userId = x.Id,
+                    name = x.FullName
+                })
+                .ToListAsync();
+
+            return Ok(users);
+        }
     }
 }
