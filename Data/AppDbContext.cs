@@ -25,6 +25,13 @@ namespace XownerWebOne.Data
                       .HasPrecision(18, 2);
 
                 entity.OwnsOne(p => p.Specification);
+
+                // ✅ FIX: SellerId → Users table se link karo
+                entity.HasOne(p => p.Seller)
+                      .WithMany()
+                      .HasForeignKey(p => p.SellerId)
+                      .HasPrincipalKey(u => u.Id)
+                      .OnDelete(DeleteBehavior.Restrict);
             });
 
             base.OnModelCreating(modelBuilder);
