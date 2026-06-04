@@ -13,7 +13,7 @@
         public string ListingType { get; set; }
         public string Description { get; set; }
 
-       public int SellerId { get; set; }
+        public int? SellerId { get; set; } // ✅ optional kar do
 
         // Specification fields
         public string Storage { get; set; }
