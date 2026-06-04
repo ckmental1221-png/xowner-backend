@@ -267,7 +267,6 @@ namespace XownerWebOne.Controllers
             _context = context;
         }
 
-        // ================= CREATE PRODUCT =================
         [HttpPost]
         public async Task<IActionResult> Create([FromForm] ProductCreateDto dto)
         {
@@ -287,12 +286,8 @@ namespace XownerWebOne.Controllers
                 OriginalPrice = dto.OriginalPrice,
                 ListingType = dto.ListingType,
                 Description = dto.Description,
-
-                // ✅ FIX 1: SellerId token se lo, frontend se nahi
                 SellerId = int.Parse(userId),
-
                 Status = "Pending",
-
                 Specification = new Specification
                 {
                     Storage = dto.Storage,
@@ -342,7 +337,8 @@ namespace XownerWebOne.Controllers
                 }
                 catch (Exception ex)
                 {
-                    return StatusCode(500, ex.Message);
+                    // ✅ FIX: 500 return mat karo, sirf log karo
+                    Console.WriteLine("Image upload error: " + ex.Message);
                 }
             }
 
@@ -359,7 +355,6 @@ namespace XownerWebOne.Controllers
             });
         }
 
-        // ================= GET PENDING =================
         [HttpGet("pending")]
         public async Task<IActionResult> GetPendingProducts()
         {
@@ -367,11 +362,9 @@ namespace XownerWebOne.Controllers
                 .Where(p => p.Status == "Pending")
                 .Include(p => p.Images)
                 .ToListAsync();
-
             return Ok(products);
         }
 
-        // ================= APPROVE =================
         [HttpPut("approve/{id}")]
         public async Task<IActionResult> Approve(int id)
         {
@@ -382,7 +375,6 @@ namespace XownerWebOne.Controllers
             return Ok(new { message = "Product approved" });
         }
 
-        // ================= REJECT =================
         [HttpPut("reject/{id}")]
         public async Task<IActionResult> Reject(int id)
         {
@@ -393,7 +385,6 @@ namespace XownerWebOne.Controllers
             return Ok(new { message = "Product rejected" });
         }
 
-        // ================= GET ALL PRODUCTS =================
         [AllowAnonymous]
         [HttpGet]
         public async Task<IActionResult> GetAllProducts()
@@ -416,11 +407,7 @@ namespace XownerWebOne.Controllers
                     p.OriginalPrice,
                     p.ListingType,
                     p.Description,
-
-                    // ✅ FIX 2: SellerId return karo chat ke liye
                     p.SellerId,
-
-                    // ✅ FIX 3: User table se seller info lo
                     Seller = new
                     {
                         Id = p.SellerId,
@@ -433,7 +420,6 @@ namespace XownerWebOne.Controllers
                             .Select(u => u.Phone)
                             .FirstOrDefault() ?? ""
                     },
-
                     Specification = p.Specification == null ? null : new
                     {
                         p.Specification.Storage,
@@ -444,33 +430,24 @@ namespace XownerWebOne.Controllers
                         p.Specification.Battery,
                         p.Specification.OS
                     },
-
-                    Images = p.Images.Select(i =>
-                        $"{baseUrl}{i.Url}"
-                    ).ToList()
+                    Images = p.Images.Select(i => $"{baseUrl}{i.Url}").ToList()
                 })
                 .ToListAsync();
 
             return Ok(products);
         }
 
-        // ================= DELETE =================
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var userId = int.Parse(
-                User.FindFirstValue(ClaimTypes.NameIdentifier)!
-            );
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
             var product = await _context.Products
                 .Include(p => p.Images)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
-            if (product == null)
-                return NotFound("Product not found");
-
-            if (product.SellerId != userId)
-                return Forbid("You are not the owner");
+            if (product == null) return NotFound("Product not found");
+            if (product.SellerId != userId) return Forbid("You are not the owner");
 
             if (product.Images != null)
             {
@@ -484,11 +461,9 @@ namespace XownerWebOne.Controllers
 
             _context.Products.Remove(product);
             await _context.SaveChangesAsync();
-
             return Ok("Product deleted successfully");
         }
 
-        // ================= GET PRODUCT BY ID =================
         [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetProductById(int id)
@@ -511,11 +486,7 @@ namespace XownerWebOne.Controllers
                     p.OriginalPrice,
                     p.ListingType,
                     p.Description,
-
-                    // ✅ FIX 4: SellerId return karo chat ke liye
                     p.SellerId,
-
-                    // ✅ FIX 5: User table se seller info lo
                     Seller = new
                     {
                         Id = p.SellerId,
@@ -528,7 +499,6 @@ namespace XownerWebOne.Controllers
                             .Select(u => u.Phone)
                             .FirstOrDefault() ?? ""
                     },
-
                     Specification = p.Specification == null ? null : new
                     {
                         p.Specification.Storage,
@@ -539,16 +509,11 @@ namespace XownerWebOne.Controllers
                         p.Specification.Battery,
                         p.Specification.OS
                     },
-
-                    Images = p.Images.Select(i =>
-                        $"{baseUrl}{i.Url}"
-                    ).ToList()
+                    Images = p.Images.Select(i => $"{baseUrl}{i.Url}").ToList()
                 })
                 .FirstOrDefaultAsync();
 
-            if (product == null)
-                return NotFound();
-
+            if (product == null) return NotFound();
             return Ok(product);
         }
     }
