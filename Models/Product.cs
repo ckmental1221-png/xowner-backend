@@ -17,8 +17,7 @@
         public string Description { get; set; }
 
         public int SellerId { get; set; }
-        public Seller Seller { get; set; }
-
+        public User Seller { get; set; } // ✅ Seller ki jagah User use karo
         public string Status { get; set; } = "Pending";   // NEW
 
 
