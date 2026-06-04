@@ -288,8 +288,8 @@ namespace XownerWebOne.Controllers
                 ListingType = dto.ListingType,
                 Description = dto.Description,
 
-                // 🔥 FIXED (IMPORTANT)
-                SellerId = dto.SellerId,
+                // ✅ FIX 1: SellerId token se lo, frontend se nahi
+                SellerId = int.Parse(userId),
 
                 Status = "Pending",
 
@@ -308,16 +308,13 @@ namespace XownerWebOne.Controllers
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
 
-            // ================= IMAGE UPLOAD =================
             if (dto.Images == null)
                 dto.Images = new List<IFormFile>();
 
             var uploadFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
 
             if (!Directory.Exists(uploadFolder))
-            {
                 Directory.CreateDirectory(uploadFolder);
-            }
 
             var images = new List<ProductImage>();
 
@@ -345,7 +342,6 @@ namespace XownerWebOne.Controllers
                 }
                 catch (Exception ex)
                 {
-                    // 🔥 अब error दिखेगा (silent fail नहीं)
                     return StatusCode(500, ex.Message);
                 }
             }
@@ -370,7 +366,6 @@ namespace XownerWebOne.Controllers
             var products = await _context.Products
                 .Where(p => p.Status == "Pending")
                 .Include(p => p.Images)
-                .Include(p => p.Seller)
                 .ToListAsync();
 
             return Ok(products);
@@ -381,13 +376,9 @@ namespace XownerWebOne.Controllers
         public async Task<IActionResult> Approve(int id)
         {
             var product = await _context.Products.FindAsync(id);
-
-            if (product == null)
-                return NotFound();
-
+            if (product == null) return NotFound();
             product.Status = "Approved";
             await _context.SaveChangesAsync();
-
             return Ok(new { message = "Product approved" });
         }
 
@@ -396,13 +387,9 @@ namespace XownerWebOne.Controllers
         public async Task<IActionResult> Reject(int id)
         {
             var product = await _context.Products.FindAsync(id);
-
-            if (product == null)
-                return NotFound();
-
+            if (product == null) return NotFound();
             product.Status = "Rejected";
             await _context.SaveChangesAsync();
-
             return Ok(new { message = "Product rejected" });
         }
 
@@ -416,7 +403,7 @@ namespace XownerWebOne.Controllers
             var products = await _context.Products
                 .Where(p => p.Status == "Approved")
                 .Include(p => p.Images)
-                .Include(p => p.Seller)
+                .Include(p => p.Specification)
                 .Select(p => new
                 {
                     p.Id,
@@ -430,15 +417,24 @@ namespace XownerWebOne.Controllers
                     p.ListingType,
                     p.Description,
 
+                    // ✅ FIX 2: SellerId return karo chat ke liye
+                    p.SellerId,
+
+                    // ✅ FIX 3: User table se seller info lo
                     Seller = new
                     {
-                        p.Seller.Id,
-                        p.Seller.Name,
-                        p.Seller.ShopName,
-                        p.Seller.Phone
+                        Id = p.SellerId,
+                        Name = _context.Users
+                            .Where(u => u.Id == p.SellerId)
+                            .Select(u => u.FullName)
+                            .FirstOrDefault() ?? "Unknown",
+                        Phone = _context.Users
+                            .Where(u => u.Id == p.SellerId)
+                            .Select(u => u.Phone)
+                            .FirstOrDefault() ?? ""
                     },
 
-                    Specification = new
+                    Specification = p.Specification == null ? null : new
                     {
                         p.Specification.Storage,
                         p.Specification.Ram,
@@ -491,15 +487,64 @@ namespace XownerWebOne.Controllers
 
             return Ok("Product deleted successfully");
         }
+
+        // ================= GET PRODUCT BY ID =================
         [AllowAnonymous]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetProductById(int id)
         {
+            var baseUrl = "https://xowner-backend-1.onrender.com";
+
             var product = await _context.Products
                 .Include(p => p.Images)
-                .Include(p => p.Seller)
                 .Include(p => p.Specification)
-                .FirstOrDefaultAsync(p => p.Id == id);
+                .Where(p => p.Id == id)
+                .Select(p => new
+                {
+                    p.Id,
+                    p.Title,
+                    p.Category,
+                    p.Brand,
+                    p.Model,
+                    p.Condition,
+                    p.Price,
+                    p.OriginalPrice,
+                    p.ListingType,
+                    p.Description,
+
+                    // ✅ FIX 4: SellerId return karo chat ke liye
+                    p.SellerId,
+
+                    // ✅ FIX 5: User table se seller info lo
+                    Seller = new
+                    {
+                        Id = p.SellerId,
+                        Name = _context.Users
+                            .Where(u => u.Id == p.SellerId)
+                            .Select(u => u.FullName)
+                            .FirstOrDefault() ?? "Unknown",
+                        Phone = _context.Users
+                            .Where(u => u.Id == p.SellerId)
+                            .Select(u => u.Phone)
+                            .FirstOrDefault() ?? ""
+                    },
+
+                    Specification = p.Specification == null ? null : new
+                    {
+                        p.Specification.Storage,
+                        p.Specification.Ram,
+                        p.Specification.Display,
+                        p.Specification.Processor,
+                        p.Specification.Camera,
+                        p.Specification.Battery,
+                        p.Specification.OS
+                    },
+
+                    Images = p.Images.Select(i =>
+                        $"{baseUrl}{i.Url}"
+                    ).ToList()
+                })
+                .FirstOrDefaultAsync();
 
             if (product == null)
                 return NotFound();
